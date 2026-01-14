@@ -7,3 +7,5 @@ dvc[s3]              # Data Version Control
 mlflow               # Experiment tracking
 onnx
 onnxscript
+ipykernel
+seaborn
