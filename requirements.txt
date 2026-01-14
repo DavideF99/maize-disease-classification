@@ -1,0 +1,9 @@
+# requirements.txt
+torch
+torchvision
+pytorch-lightning
+albumentations       # Professional image augmentation
+dvc[s3]              # Data Version Control
+mlflow               # Experiment tracking
+onnx
+onnxscript
