@@ -1,3 +1,8 @@
 /data/*         
 !/data/*.dvc    
 /.venv        
+/checkpoints
+/logs
+__pycache__
+/lightning_logs
+/maize_disease.egg-info
