@@ -43,7 +43,7 @@ if __name__ == "__main__":
     
     # 1. Setup paths
     raw_data_path = "data/raw"
-    checkpoint = "checkpoints/best-maize-model-val_f1=0.60.ckpt"
+    checkpoint = "checkpoints/best-maize-model-val_f1=0.57.ckpt"
     
     # 2. Find the first available image in the folder
     available_images = [f for f in os.listdir(raw_data_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]

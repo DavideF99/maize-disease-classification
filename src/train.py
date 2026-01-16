@@ -8,7 +8,8 @@ from src.models.maize_model import MaizeDiseaseModel
 def train():
     # 1. Initialize Data and Model
     dm = MaizeDataModule(batch_size=32)
-    model = MaizeDiseaseModel(learning_rate=1e-3)
+    dm.setup()  
+    model = MaizeDiseaseModel(num_classes=8,learning_rate=1e-3, class_weights=dm.class_weights)
 
     # 2. Setup Loggers and Callbacks
     logger = TensorBoardLogger("logs", name="maize_disease_v1")

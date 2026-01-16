@@ -47,18 +47,34 @@ class MaizeDataModule(pl.LightningDataModule):
         self.data_dir = data_dir
         self.batch_size = batch_size
         
-        # Industry Standard: ImageNet normalization and 224x224 resize for MobileNet
+        # Define the target columns for calculation
+        self.label_columns = [
+            'GLS', 'NCLB', 'PLS', 'CR', 'SR', 
+            'NoFoliarSymptoms', 'Other', 'UnidentifiedDisease'
+        ]
+
+        # 1. Load DF here so we can calculate weights immediately
+        self.df = pd.read_csv(self.csv_path)
+
+        # 2. Calculate Weights (Inverse Frequency)
+        counts = self.df[self.label_columns].sum().values
+        total = len(self.df)
+        weights = total / (len(self.label_columns) * (counts + 1e-6))
+        self.class_weights = torch.tensor(weights, dtype=torch.float32)
+        
+        # 3. Enhanced Synthetic Augmentations
         self.train_transform = A.Compose([
             A.Resize(height=256, width=256),
-            A.RandomResizedCrop(size=(224, 224)),
+            A.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.2),
-            A.RandomBrightnessContrast(p=0.2), # Crucial for outdoor field images
-            A.Rotate(limit=30, p=0.5),
+            A.RandomRotate90(p=0.5),
+            A.ColorJitter(brightness=0.2, contrast=0.2, p=0.5), 
+            A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=10, p=0.5),
             A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ToTensorV2(),
         ])
-        
+
         self.val_transform = A.Compose([
             A.Resize(height=224, width=224),
             A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -66,11 +82,8 @@ class MaizeDataModule(pl.LightningDataModule):
         ])
 
     def setup(self, stage=None):
-        df = pd.read_csv(self.csv_path)
-        
-        # Split into Train (80%) and Test (20%)
-        train_val_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
-        # Split Train further into Train (80% of 80%) and Val (20% of 80%)
+        # Use the df already loaded in __init__
+        train_val_df, test_df = train_test_split(self.df, test_size=0.2, random_state=42)
         train_df, val_df = train_test_split(train_val_df, test_size=0.2, random_state=42)
         
         if stage == "fit" or stage is None:

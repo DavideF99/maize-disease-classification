@@ -6,23 +6,28 @@ from torchvision import models
 import torchmetrics
 
 class MaizeDiseaseModel(pl.LightningModule):
-    def __init__(self, num_classes=8, learning_rate=1e-3):
+    def __init__(self, num_classes=8, learning_rate=1e-3, class_weights=None):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['class_weights']) # Ignore weights in hparams to avoid sizing issues
         self.learning_rate = learning_rate
         
         # 1. Load Pretrained MobileNetV3
-        # Using 'weights' is the modern PyTorch way (2026 standard)
         self.backbone = models.mobilenet_v3_large(weights='DEFAULT')
         
         # 2. Modify the classifier head for 8 classes
-        # MobileNetV3 classifier is the last part of the network
         input_features = self.backbone.classifier[3].in_features
         self.backbone.classifier[3] = nn.Linear(input_features, num_classes)
         
-        # 3. Metrics (Industry Standard for multi-label)
+        # 3. Metrics
         self.train_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
         self.val_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
+
+        # 4. Store weights for the loss function as a buffer
+        # This ensures they move to MPS/GPU automatically
+        if class_weights is not None:
+            self.register_buffer("weights", class_weights)
+        else:
+            self.register_buffer("weights", torch.ones(num_classes))
 
     def forward(self, x):
         return self.backbone(x)
@@ -30,8 +35,9 @@ class MaizeDiseaseModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
-        # Use Binary Cross Entropy with Logits for multi-label
-        loss = F.binary_cross_entropy_with_logits(logits, y)
+        
+        # We reference self.weights (the buffer) instead of class_weights
+        loss = F.binary_cross_entropy_with_logits(logits, y, pos_weight=self.weights)
         
         self.train_f1(logits, y)
         self.log("train_loss", loss, prog_bar=True)
