@@ -6,23 +6,34 @@ from torchvision import models
 import torchmetrics
 
 class MaizeDiseaseModel(pl.LightningModule):
-    def __init__(self, num_classes=8, learning_rate=1e-3, class_weights=None):
+    def __init__(self, num_classes=8, learning_rate=1e-4, class_weights=None):
         super().__init__()
         self.save_hyperparameters(ignore=['class_weights']) # Ignore weights in hparams to avoid sizing issues
         self.learning_rate = learning_rate
         
         # 1. Load Pretrained MobileNetV3
         self.backbone = models.mobilenet_v3_large(weights='DEFAULT')
+
+        # 2. Freeze everything
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+            
+        # Unfreeze the last few blocks (features[13] to features[16] and the classifier)
+        # In MobileNetV3, the later 'features' layers contain high-level semantic info
+        for param in self.backbone.features[13:].parameters():
+            param.requires_grad = True
+        for param in self.backbone.classifier.parameters():
+            param.requires_grad = True
         
-        # 2. Modify the classifier head for 8 classes
+        # 3. Modify the classifier head for 8 classes
         input_features = self.backbone.classifier[3].in_features
         self.backbone.classifier[3] = nn.Linear(input_features, num_classes)
         
-        # 3. Metrics
+        # 4. Metrics
         self.train_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
         self.val_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
 
-        # 4. Store weights for the loss function as a buffer
+        # 5. Store weights for the loss function as a buffer
         # This ensures they move to MPS/GPU automatically
         if class_weights is not None:
             self.register_buffer("weights", class_weights)
