@@ -28,7 +28,7 @@ class MaizeDiseaseModel(pl.LightningModule):
         # 3. Modify the classifier head for 8 classes
         input_features = self.backbone.classifier[3].in_features
         self.backbone.classifier[3] = nn.Sequential(
-            nn.Dropout(p=0.2), # 50% dropout is strong but effective for small datasets
+            nn.Dropout(p=0.2), # 20% dropout is effective for small datasets
             nn.Linear(input_features, num_classes)
         )
         
