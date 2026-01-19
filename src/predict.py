@@ -36,14 +36,14 @@ def predict(image_path, checkpoint_path):
     print("-" * 30)
     for name, prob in zip(class_names, probs):
         if prob > 0.01: # Showing anything with over 1% confidence
-            print(f"{name}: {prob*100:.2f}%")
+            print(f"{name}: {prob*100:.2f}% (confidence)")
 
 if __name__ == "__main__":
     import os
     
     # 1. Setup paths
     raw_data_path = "data/raw"
-    checkpoint = "checkpoints/best-maize-model-val_f1=0.53.ckpt"
+    checkpoint = "checkpoints/best-maize-model-val_f1=0.51.ckpt"
     
     # 2. Find the first available image in the folder
     available_images = [f for f in os.listdir(raw_data_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]

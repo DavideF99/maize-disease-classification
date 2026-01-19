@@ -27,7 +27,10 @@ class MaizeDiseaseModel(pl.LightningModule):
         
         # 3. Modify the classifier head for 8 classes
         input_features = self.backbone.classifier[3].in_features
-        self.backbone.classifier[3] = nn.Linear(input_features, num_classes)
+        self.backbone.classifier[3] = nn.Sequential(
+            nn.Dropout(p=0.2), # 50% dropout is strong but effective for small datasets
+            nn.Linear(input_features, num_classes)
+        )
         
         # 4. Metrics
         self.train_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
@@ -78,4 +81,8 @@ class MaizeDiseaseModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return torch.optim.Adam(
+            self.parameters(), 
+            lr=self.learning_rate,
+            weight_decay=1e-5 # Adds L2 regularization
+        )
