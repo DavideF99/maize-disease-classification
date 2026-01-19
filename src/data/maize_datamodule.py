@@ -64,8 +64,8 @@ class MaizeDataModule(pl.LightningDataModule):
         
         # 3. Enhanced Synthetic Augmentations
         self.train_transform = A.Compose([
-            A.Resize(height=256, width=256),
-            A.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+            # A.Resize(height=512, width=512), # Do not resize original images
+            A.RandomResizedCrop(size=(448, 448), scale=(0.5, 1.0)), # High-res crops
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.2),
             A.RandomRotate90(p=0.5),
@@ -76,7 +76,7 @@ class MaizeDataModule(pl.LightningDataModule):
         ])
 
         self.val_transform = A.Compose([
-            A.Resize(height=224, width=224),
+            A.Resize(height=448, width=448),
             A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ToTensorV2(),
         ])
