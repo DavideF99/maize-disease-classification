@@ -52,10 +52,19 @@ class MaizeDiseaseModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
+
+        # --- MANUALLY APPLY LABEL SMOOTHING ---
+        # We turn 1s into 0.9 and 0s into 0.1 (if epsilon is 0.1)
+        eps = 0.1
+        y_smoothed = y * (1 - eps) + 0.5 * eps
         
         # We reference self.weights (the buffer) instead of class_weights
         # Use weighted loss to continue focusing on minority classes like SR
-        loss = F.binary_cross_entropy_with_logits(logits, y, pos_weight=self.weights)
+        loss = F.binary_cross_entropy_with_logits(
+            logits, y_smoothed, 
+            pos_weight=self.weights,
+            reduction='mean'
+        )
         
         self.train_f1(logits, y)
         self.log("train_loss", loss, prog_bar=True)
