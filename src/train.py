@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import LearningRateMonitor
 
 from src.data.maize_datamodule import MaizeDataModule
 from src.models.maize_model import MaizeDiseaseModel
@@ -28,8 +29,10 @@ def train():
         mode="max"
     )
 
-    # 3. Initialize Trainer
+    # 3. Initialize Trainer and learning rate monitor
     # We use 'mps' for your MacBook GPU and 'devices=1'
+    lr_monitor = LearningRateMonitor(logging_interval='epoch')
+
     trainer = pl.Trainer(
         max_epochs=30,
         accelerator="mps",
@@ -37,7 +40,8 @@ def train():
         callbacks=[checkpoint_callback, early_stop_callback],
         logger=logger,
         precision="16-mixed", # Uses mixed precision to speed up M-series chips
-        log_every_n_steps=5  # Add this for smoother real-time charts on TensorBoard
+        log_every_n_steps=5,  # Add this for smoother real-time charts on TensorBoard
+        callbacks=[checkpoint_callback, early_stop_callback, lr_monitor]
     )
 
     # 4. Start Training

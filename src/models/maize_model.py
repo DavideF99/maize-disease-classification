@@ -8,36 +8,39 @@ import torchmetrics
 class MaizeDiseaseModel(pl.LightningModule):
     def __init__(self, num_classes=8, learning_rate=1e-4, class_weights=None):
         super().__init__()
-        self.save_hyperparameters(ignore=['class_weights']) # Ignore weights in hparams to avoid sizing issues
+        self.save_hyperparameters(ignore=['class_weights']) # Ignore weights in hparams to avoid sizing issues during checkpoint loading
         self.learning_rate = learning_rate
         
-        # 1. Load Pretrained MobileNetV3
-        self.backbone = models.mobilenet_v3_large(weights='DEFAULT')
+        # 1. Load Pretrained EfficientNet-B0
+        # EfficientNet-B0 is more robust than MobileNet, using better compound scaling
+        self.backbone = models.efficientnet_b0(weights='DEFAULT')
 
-        # 2. Freeze everything
+        # 2. Freeze base layers for stable initial transfer learning
         for param in self.backbone.parameters():
             param.requires_grad = False
             
-        # Unfreeze the last few blocks (features[13] to features[16] and the classifier)
-        # In MobileNetV3, the later 'features' layers contain high-level semantic info
-        for param in self.backbone.features[13:].parameters():
+        # Unfreeze the final feature blocks and the classifier
+        # This allows the model to fine-tune high-level disease features 
+        # while keeping general image features (edges/shapes) frozen.
+        for param in self.backbone.features[6:].parameters():
             param.requires_grad = True
         for param in self.backbone.classifier.parameters():
             param.requires_grad = True
         
         # 3. Modify the classifier head for 8 classes
-        input_features = self.backbone.classifier[3].in_features
-        self.backbone.classifier[3] = nn.Sequential(
-            nn.Dropout(p=0.2), # 20% dropout is effective for small datasets
+        # EfficientNet-B0's classifier is a Sequential: [Dropout, Linear]
+        # We replace the final Linear layer (index 1) with our task-specific head
+        input_features = self.backbone.classifier[1].in_features
+        self.backbone.classifier[1] = nn.Sequential(
+            nn.Dropout(p=0.3, inplace=True), # Higher dropout to prevent overfitting on rare classes
             nn.Linear(input_features, num_classes)
         )
         
-        # 4. Metrics
+        # 4. Multi-label Metrics
         self.train_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
         self.val_f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes)
 
-        # 5. Store weights for the loss function as a buffer
-        # This ensures they move to MPS/GPU automatically
+        # 5. Store weights for the loss function as a buffer to handle device movement
         if class_weights is not None:
             self.register_buffer("weights", class_weights)
         else:
@@ -51,6 +54,7 @@ class MaizeDiseaseModel(pl.LightningModule):
         logits = self(x)
         
         # We reference self.weights (the buffer) instead of class_weights
+        # Use weighted loss to continue focusing on minority classes like SR
         loss = F.binary_cross_entropy_with_logits(logits, y, pos_weight=self.weights)
         
         self.train_f1(logits, y)
@@ -81,8 +85,27 @@ class MaizeDiseaseModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(
-            self.parameters(), 
+        # Filter for only trainable parameters to save memory
+        optimizer = torch.optim.Adam(
+            filter(lambda p: p.requires_grad, self.parameters()), 
             lr=self.learning_rate,
-            weight_decay=1e-5 # Adds L2 regularization
+            weight_decay=1e-5
         )
+        
+        # 6. Learning Rate Scheduler (ReduceLROnPlateau)
+        # This monitors 'val_loss' and cuts the LR by half if it plateaus for 3 epochs.
+        # This helps the model "settle" into the best weights at the end of training.
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=3
+        )
+        
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss", # Required for ReduceLROnPlateau in Lightning
+            },
+        }
