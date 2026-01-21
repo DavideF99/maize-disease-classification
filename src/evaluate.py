@@ -34,8 +34,17 @@ def evaluate():
             # Move to device (MPS for Mac)
             x = x.to(model.device)
             logits = model(x)
-            # Apply sigmoid to get probabilities, then threshold at 0.5
-            preds = torch.sigmoid(logits) > 0.3
+
+            # Define thresholds for each class (Must match the order of your classes)
+            # Order: GLS, NCLB, PLS, CR, SR, NoFoliar, Other, Unidentified
+            thresholds = torch.tensor([0.35, 0.35, 0.35, 0.35, 0.20, 0.70, 0.30, 0.15]).to(model.device)
+            
+            # Convert logits to probabilities
+            probs = torch.sigmoid(logits)
+            
+            # Apply thresholds class-by-class
+            # This compares each column of 'probs' to the corresponding value in 'thresholds'
+            preds = (probs > thresholds).float()
             
             all_preds.append(preds.cpu().numpy())
             all_labels.append(y.cpu().numpy())
