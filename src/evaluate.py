@@ -3,61 +3,78 @@ import torch
 import numpy as np
 from src.data.maize_datamodule import MaizeDataModule
 from src.models.maize_model import MaizeDiseaseModel
-from sklearn.metrics import classification_report, multilabel_confusion_matrix
+from sklearn.metrics import classification_report, precision_recall_curve
 import os
 
+def find_best_thresholds(all_probs, all_labels):
+    """Finds the F1-optimizing threshold for each class individually."""
+    best_thresholds = []
+    # Loop through each of the 8 classes
+    for i in range(all_labels.shape[1]):
+        precision, recall, thresholds = precision_recall_curve(all_labels[:, i], all_probs[:, i])
+        
+        # Calculate F1 score for every possible threshold
+        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+        
+        # Get the index of the highest F1 score
+        best_idx = np.argmax(f1_scores)
+        
+        # Guard against classes with zero labels in the set
+        if best_idx < len(thresholds):
+            best_thresholds.append(thresholds[best_idx])
+        else:
+            best_thresholds.append(0.5) # Default fallback
+            
+    return np.array(best_thresholds)
+
+def get_predictions(model, dataloader):
+    """Helper to collect all raw probabilities and labels from a loader."""
+    model.eval()
+    all_probs = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            x, y = batch
+            logits = model(x.to(model.device))
+            probs = torch.sigmoid(logits)
+            all_probs.append(probs.cpu().numpy())
+            all_labels.append(y.cpu().numpy())
+            
+    return np.vstack(all_probs), np.vstack(all_labels)
+
 def evaluate():
+    # 1. Load best model
     ckpt_dir = "checkpoints/"
     checkpoints = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
-    if not checkpoints:
-        print("No checkpoints found!")
-        return
-    
+    if not checkpoints: return
     best_ckpt = os.path.join(ckpt_dir, sorted(checkpoints)[-1])
-    print(f"Loading best model from: {best_ckpt}")
-
-    # Load Model and Data
     model = MaizeDiseaseModel.load_from_checkpoint(best_ckpt)
-    model.eval() # Set to evaluation mode
     
+    # 2. Setup Data
     dm = MaizeDataModule()
-    dm.setup(stage="test")
-    test_loader = dm.test_dataloader()
-
-    all_preds = []
-    all_labels = []
-
-    print("Running detailed inference...")
-    with torch.no_grad():
-        for batch in test_loader:
-            x, y = batch
-            # Move to device (MPS for Mac)
-            x = x.to(model.device)
-            logits = model(x)
-
-            # Define thresholds for each class (Must match the order of your classes)
-            # Order: GLS, NCLB, PLS, CR, SR, NoFoliar, Other, Unidentified
-            thresholds = torch.tensor([0.35, 0.35, 0.35, 0.35, 0.20, 0.70, 0.30, 0.15]).to(model.device)
-            
-            # Convert logits to probabilities
-            probs = torch.sigmoid(logits)
-            
-            # Apply thresholds class-by-class
-            # This compares each column of 'probs' to the corresponding value in 'thresholds'
-            preds = (probs > thresholds).float()
-            
-            all_preds.append(preds.cpu().numpy())
-            all_labels.append(y.cpu().numpy())
-
-    # Concatenate results
-    y_pred = np.vstack(all_preds)
-    y_true = np.vstack(all_labels)
-
-    # Class names from your DataModule
+    dm.setup()
+    
+    # 3. PHASE 1: Find Best Thresholds on Validation Set
+    print("Step 1: Optimizing thresholds on Validation Set...")
+    val_probs, val_labels = get_predictions(model, dm.val_dataloader())
+    best_thresholds = find_best_thresholds(val_probs, val_labels)
+    
+    # 4. PHASE 2: Test on Test Set using optimized thresholds
+    print("Step 2: Evaluating on Test Set with optimized thresholds...")
+    test_probs, test_labels = get_predictions(model, dm.test_dataloader())
+    
+    # Apply the thresholds (broadcasting across columns)
+    test_preds = (test_probs > best_thresholds).astype(float)
+    
+    # 5. Report Results
     target_names = ['GLS', 'NCLB', 'PLS', 'CR', 'SR', 'NoFoliar', 'Other', 'Unidentified']
-
-    print("\n--- Per-Class Classification Report ---")
-    print(classification_report(y_true, y_pred, target_names=target_names, zero_division=0))
+    print("\n--- Optimized Classification Report ---")
+    print(classification_report(test_labels, test_preds, target_names=target_names, zero_division=0))
+    
+    print("\n--- Discovered Optimal Thresholds ---")
+    for name, thresh in zip(target_names, best_thresholds):
+        print(f"{name}: {thresh:.4f}")
 
 if __name__ == "__main__":
     evaluate()

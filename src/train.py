@@ -37,11 +37,10 @@ def train():
         max_epochs=30,
         accelerator="mps",
         devices=1,
-        callbacks=[checkpoint_callback, early_stop_callback],
+        callbacks=[checkpoint_callback, early_stop_callback, lr_monitor],
         logger=logger,
         precision="16-mixed", # Uses mixed precision to speed up M-series chips
-        log_every_n_steps=5,  # Add this for smoother real-time charts on TensorBoard
-        callbacks=[checkpoint_callback, early_stop_callback, lr_monitor]
+        log_every_n_steps=5  # Add this for smoother real-time charts on TensorBoard
     )
 
     # 4. Start Training
