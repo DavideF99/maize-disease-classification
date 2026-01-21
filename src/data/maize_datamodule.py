@@ -7,6 +7,7 @@ import cv2
 import os
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+from torch.utils.data import WeightedRandomSampler
 
 class MaizeDataset(Dataset):
     def __init__(self, df, data_dir, transform=None):
@@ -65,10 +66,12 @@ class MaizeDataModule(pl.LightningDataModule):
         # 3. Enhanced Synthetic Augmentations
         self.train_transform = A.Compose([
             # A.Resize(height=512, width=512), # Do not resize original images
-            A.RandomResizedCrop(size=(448, 448), scale=(0.5, 1.0)), # High-res crops
+            A.RandomResizedCrop(size=(448, 448), scale=(0.4, 1.0)), # High-res crops
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.2),
             A.RandomRotate90(p=0.5),
+            A.Transpose(p=0.5), # Flips across diagonal
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=30, p=0.5), # Random jitter
             A.ColorJitter(brightness=0.2, contrast=0.2, p=0.5), 
             A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=10, p=0.5),
             A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -89,12 +92,34 @@ class MaizeDataModule(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             self.train_set = MaizeDataset(train_df, self.data_dir, transform=self.train_transform)
             self.val_set = MaizeDataset(val_df, self.data_dir, transform=self.val_transform)
+
+            # 1. Calculate weight for each sample
+            # We look at the 'labels' for each row. If it has SR or NoFoliar, give it high weight.
+            weights = []
+            for _, row in train_df.iterrows():
+                # If it's Southern Rust or No Foliar Symptoms
+                if row['SR'] == 1 or row['NoFoliarSymptoms'] == 1:
+                    weights.append(10.0) # 10x more likely to be sampled
+                else:
+                    weights.append(1.0)
+            
+            self.sampler = WeightedRandomSampler(
+                weights=torch.DoubleTensor(weights),
+                num_samples=len(weights),
+                replacement=True
+            )
             
         if stage == "test" or stage is None:
             self.test_set = MaizeDataset(test_df, self.data_dir, transform=self.val_transform)
 
     def train_dataloader(self):
-        return DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=2)
+        # IMPORTANT: When using a sampler, shuffle must be False
+        return DataLoader(
+            self.train_set, 
+            batch_size=self.batch_size, 
+            sampler=self.sampler, # Add the sampler here
+            num_workers=2
+        )
 
     def val_dataloader(self):
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=2)

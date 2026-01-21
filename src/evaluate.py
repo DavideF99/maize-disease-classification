@@ -35,7 +35,7 @@ def evaluate():
             x = x.to(model.device)
             logits = model(x)
             # Apply sigmoid to get probabilities, then threshold at 0.5
-            preds = torch.sigmoid(logits) > 0.5
+            preds = torch.sigmoid(logits) > 0.3
             
             all_preds.append(preds.cpu().numpy())
             all_labels.append(y.cpu().numpy())
