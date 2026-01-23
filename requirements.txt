@@ -22,6 +22,7 @@ attrs==25.4.0
 billiard==4.2.4
 blinker==1.9.0
 botocore==1.42.19
+bottle==0.13.4
 cachetools==6.2.4
 celery==5.6.2
 certifi==2026.1.4
@@ -33,6 +34,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 cloudpickle==3.1.2
 colorama==0.4.6
+colorlog==6.10.1
 comm==0.2.3
 configobj==5.0.9
 contourpy==1.3.3
@@ -95,8 +97,9 @@ jupyter_client==8.8.0
 jupyter_core==5.9.1
 kiwisolver==1.4.9
 kombu==5.6.2
+lightning==2.6.0
 lightning-utilities==0.15.2
--e git+https://github.com/DavideF99/maize-disease-classification.git@16fab4a6bd54a003a2c672905dd75d7864fa10e9#egg=maize_disease
+-e git+https://github.com/DavideF99/maize-disease-classification.git@1bb383079503d34a37ff4f6d505768d12ba4407c#egg=maize_disease
 Mako==1.3.10
 Markdown==3.10
 markdown-it-py==4.0.0
@@ -122,6 +125,9 @@ opentelemetry-api==1.39.1
 opentelemetry-proto==1.39.1
 opentelemetry-sdk==1.39.1
 opentelemetry-semantic-conventions==0.60b1
+optuna==4.7.0
+optuna-dashboard==0.20.0
+optuna-integration==4.7.0
 orjson==3.11.5
 packaging==25.0
 pandas==2.3.3

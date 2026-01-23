@@ -6,8 +6,8 @@ from torchvision import models
 import torchmetrics
 
 class MaizeDiseaseModel(pl.LightningModule):
-    def __init__(self, num_classes=8, learning_rate=1e-4, class_weights=None, 
-                 label_smoothing=0.1, weight_decay=1e-5, dropout=0.3):
+    def __init__(self, num_classes=8, learning_rate=0.00047, class_weights=None, 
+                 label_smoothing=0.09, weight_decay=0.00011, dropout=0.5):
         super().__init__()
         # 1. Store all hparams so Optuna can inject and track them
         self.save_hyperparameters(ignore=['class_weights'])

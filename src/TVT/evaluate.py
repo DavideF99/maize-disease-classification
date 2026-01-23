@@ -64,7 +64,7 @@ def get_predictions_with_tta(model, dataloader):
 
 def evaluate():
     # 1. Load best model from checkpoints
-    ckpt_dir = "checkpoints/"
+    ckpt_dir = "checkpoints/hero_model/"
     if not os.path.exists(ckpt_dir):
         print(f"Checkpoint directory {ckpt_dir} not found.")
         return
