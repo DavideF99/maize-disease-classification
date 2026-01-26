@@ -20,7 +20,7 @@ def get_ensemble_probs_with_tta(gk_model, hero_model, dataloader):
     all_final_probs = []
     all_labels = []
     
-    label_names = ['GLS', 'NCLB', 'PLS', 'CR', 'SR', 'NoFoliar', 'Other', 'Unidentified']
+    target_names = ['GLS', 'NCLB', 'PLS', 'CR', 'SR', 'NoFoliar', 'Other', 'Unidentified']
 
     print(f"Running Ensemble + TTA Inference on {len(dataloader)} batches...")
     
@@ -100,15 +100,41 @@ def run_master_evaluation():
     test_preds = (test_probs >= best_thresholds).astype(float)
     
     # 5. Report
-    label_names = ['GLS', 'NCLB', 'PLS', 'CR', 'SR', 'NoFoliar', 'Other', 'Unidentified']
+    target_names = ['GLS', 'NCLB', 'PLS', 'CR', 'SR', 'NoFoliar', 'Other', 'Unidentified']
     print("\n" + "="*50)
     print("MASTER ENSEMBLE REPORT (GATEKEEPER + HERO + TTA + DYNAMIC)")
     print("="*50)
-    print(classification_report(test_labels, test_preds, target_names=label_names, zero_division=0))
+    print(classification_report(test_labels, test_preds, target_names=target_names, zero_division=0))
     
     print("\n--- New Dynamic Thresholds ---")
-    for name, thresh in zip(label_names, best_thresholds):
+    for name, thresh in zip(target_names, best_thresholds):
         print(f"{name:<15}: {thresh:.4f}")
+
+    from sklearn.metrics import multilabel_confusion_matrix
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    def plot_multilabel_confusion_matrix(test_labels, test_preds, target_names):
+        """Generates and saves a 2x2 confusion matrix for each class."""
+        mcm = multilabel_confusion_matrix(test_labels, test_preds)
+        
+        # Create a grid for the 8 classes (4 rows, 2 columns)
+        fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(12, 18))
+        axes = axes.flatten()
+        
+        for i, (matrix, name) in enumerate(zip(mcm, target_names)):
+            sns.heatmap(matrix, annot=True, fmt='d', ax=axes[i], cmap='Blues', cbar=False)
+            axes[i].set_title(f"Class: {name}")
+            axes[i].set_xlabel("Predicted")
+            axes[i].set_ylabel("Actual")
+            axes[i].set_xticklabels(['Absence', 'Presence'])
+            axes[i].set_yticklabels(['Absence', 'Presence'])
+        
+        plt.tight_layout()
+        plt.savefig("checkpoints/gatekeeper/confusion_matrices.png")
+        print("\nVisual confusion matrices saved to 'checkpoints/gatekeeper/confusion_matrices.png'")
+
+    plot_multilabel_confusion_matrix(test_labels, test_preds, target_names)
 
 if __name__ == "__main__":
     run_master_evaluation()

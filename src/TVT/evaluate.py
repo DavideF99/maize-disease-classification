@@ -129,8 +129,8 @@ def evaluate():
             axes[i].set_yticklabels(['Absence', 'Presence'])
         
         plt.tight_layout()
-        plt.savefig("checkpoints/confusion_matrices.png")
-        print("\nVisual confusion matrices saved to 'checkpoints/confusion_matrices.png'")
+        plt.savefig("checkpoints/hero_model/confusion_matrices.png")
+        print("\nVisual confusion matrices saved to 'checkpoints/hero_model/confusion_matrices.png'")
 
     plot_multilabel_confusion_matrix(test_labels, test_preds, target_names)
     
