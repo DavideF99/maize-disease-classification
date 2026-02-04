@@ -1,3 +1,15 @@
+---
+title: Maize Disease Classification
+emoji: 🌽
+colorFrom: green
+colorTo: yellow
+sdk: streamlit
+sdk_version: 1.41.1
+app_file: app.py
+pinned: false
+license: apache-2.0
+---
+
 # Large-scale Maize Disease Classification with Hierarchical Ensembles
 
 [![Deep Learning](https://img.shields.io/badge/Model-Hierarchical--Ensemble-blue.svg)](https://github.com/DavideF99/maize-disease-classification)
@@ -89,6 +101,24 @@ A FastAPI interface is available for inference and docs (only on MacOS, as it us
 ```bash
 uvicorn src.app:app --reload
 ```
+
+---
+
+## 🚀 Hugging Face Spaces Deployment
+To deploy this project to Hugging Face Spaces with a minimal footprint, follow these steps using the `HFS-deployment` branch:
+
+1. **Create the Space**: Go to Hugging Face and create a new Streamlit Space.
+2. **Setup the Branch**:
+   ```bash
+   git checkout HFS-deployment
+   ```
+3. **Push to Hugging Face**:
+   Add the Hugging Face Space as a remote and push:
+   ```bash
+   git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+   git push -f hf HFS-deployment:main
+   ```
+   *Note: Ensure you have Git LFS installed to handle the model checkpoints.*
 
 ---
 
