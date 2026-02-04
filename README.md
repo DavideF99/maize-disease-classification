@@ -73,11 +73,21 @@ The system provides a Batch Prediction interface:
 ```bash
 python src/TVT/batch_predict.py --input_dir data/test_images/ --output_csv predictions.csv
 ```
-
-### Web Interface
-A Gradio-based web interface is available for interactive testing:
+## Running Docker Container
+This project also includes a Dockerfile for containerization. To run the container, use the following commands:
 ```bash
-python src/app.py
+docker build -t maize-api:v1 .
+docker run -d -p 8000:8000 --name maize-engine maize-api:v1
+```
+## Running Streamlit Web Interface
+Once the Docker container is running, you can access the web interface at by running the following commands and clicking on the localhost link:
+```bash
+streamlit run src/interface.py
+```
+### API Interface
+A FastAPI interface is available for inference and docs (only on MacOS, as it uses MPS for inference):   
+```bash
+uvicorn src.app:app --reload
 ```
 
 ---
