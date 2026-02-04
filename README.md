@@ -92,5 +92,23 @@ uvicorn src.app:app --reload
 
 ---
 
+## 🚀 Hugging Face Spaces Deployment
+To deploy this project to Hugging Face Spaces with a minimal footprint, follow these steps using the `HFS-deployment` branch:
+
+1. **Create the Space**: Go to Hugging Face and create a new Streamlit Space.
+2. **Setup the Branch**:
+   ```bash
+   git checkout HFS-deployment
+   ```
+3. **Push to Hugging Face**:
+   Add the Hugging Face Space as a remote and push:
+   ```bash
+   git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+   git push -f hf HFS-deployment:main
+   ```
+   *Note: Ensure you have Git LFS installed to handle the model checkpoints.*
+
+---
+
 ## 🏁 Final Model Justification
 We settled on the **Gatekeeper + Specialist Ensemble** because it effectively decouples the "Is it sick?" question from "What does it have?". This architecture, combined with **EfficientNet-B0**, **TTA**, and **Dynamic Thresholds**, provided the most robust performance across the severely imbalanced dataset, ensuring that "Healthy" leaves are filtered out with 95%+ F1-score before disease-specific classification begins.
